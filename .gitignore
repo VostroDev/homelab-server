@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Database (contains student data — do not commit)
+data/
+
+# Environment / secrets (if you ever add a .env file)
+.env
+.env.*
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor folders
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Zip files (arduino library zip is generated, not source)
+arduino/*.zip

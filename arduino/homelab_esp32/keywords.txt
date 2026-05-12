@@ -1,0 +1,23 @@
+#######################################
+# HomeLab ESP32 Library — keywords.txt
+# Syntax: KEYWORD1 = class/type (orange)
+#         KEYWORD2 = method/function (orange)
+#         LITERAL1 = constant (teal)
+#######################################
+
+#######################################
+# Class
+#######################################
+
+HomeLab	KEYWORD1
+
+#######################################
+# Methods
+#######################################
+
+begin	KEYWORD2
+loop	KEYWORD2
+publishSensor	KEYWORD2
+getControl	KEYWORD2
+getControlString	KEYWORD2
+connected	KEYWORD2

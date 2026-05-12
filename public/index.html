@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HomeLab — IoT Dashboard</title>
+  <link rel="icon" type="image/png" href="/icon.png">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --surface2:  #22263a;
+      --border:    #2e3350;
+      --accent:    #4f8ef7;
+      --accent2:   #7c4dff;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --text:      #e8eaf6;
+      --muted:     #8892b0;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .logo svg { color: var(--accent); }
+
+    .header-actions { display: flex; gap: 0.75rem; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+
+    main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+
+    /* Create form */
+    .create-form {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      padding: 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .create-form input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .create-form input:focus { border-color: var(--accent); }
+
+    /* Dashboard list */
+    #dash-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .dash-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .dash-card:hover { border-color: var(--accent); background: var(--surface2); }
+    .dash-card.dragging { opacity: 0.4; }
+    .dash-card.drag-over { border-color: var(--accent2); border-style: dashed; }
+
+    .drag-handle {
+      color: var(--muted);
+      cursor: grab;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+    .drag-handle:active { cursor: grabbing; }
+
+    .dash-info { flex: 1; overflow: hidden; }
+    .dash-name { font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dash-meta { color: var(--muted); font-size: 0.8rem; margin-top: 0.15rem; }
+
+    .dash-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+    }
+    .empty-state svg { margin: 0 auto 1rem; display: block; opacity: 0.3; }
+    .empty-state p { font-size: 1rem; }
+
+    /* Devices panel */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 2.5rem 0 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title { font-size: 1.1rem; font-weight: 700; }
+
+    .device-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .device-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.85rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .device-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .device-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    .device-info { flex: 1; overflow: hidden; }
+    .device-name { font-weight: 600; }
+    .device-token { font-family: monospace; font-size: 0.78rem; color: var(--muted); margin-top: 0.1rem; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      width: min(420px, 94vw);
+      transform: translateY(12px);
+      transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+
+    .modal h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .form-group input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.6rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .form-group input:focus { border-color: var(--accent); }
+
+    .token-display {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .token-display code { font-family: monospace; font-size: 0.9rem; color: var(--accent); word-break: break-all; }
+
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem; right: 1.5rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.875rem;
+      color: var(--text);
+      z-index: 200;
+      transform: translateY(4rem);
+      opacity: 0;
+      transition: transform 0.25s, opacity 0.25s;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    @media (max-width: 500px) {
+      header { padding: 1rem; }
+      main { padding: 1.25rem 1rem; }
+      .dash-card { padding: 0.85rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+    HomeLab
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="openDeviceModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
+      Manage Devices
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="page-title">Dashboards</div>
+  <div class="page-sub">Each student creates their own dashboard and links it to their ESP32 device.</div>
+
+  <div class="create-form">
+    <input type="text" id="new-dash-name" placeholder="New dashboard name (e.g. Alice's Plant Monitor)" maxlength="60"
+           onkeydown="if(event.key==='Enter') createDashboard()">
+    <button class="btn btn-primary" onclick="createDashboard()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      Create
+    </button>
+  </div>
+
+  <div id="dash-list"></div>
+</main>
+
+<!-- Device management modal -->
+<div class="modal-overlay" id="device-modal">
+  <div class="modal">
+    <h2>Manage Devices</h2>
+
+    <div class="form-group">
+      <label>Device name</label>
+      <input type="text" id="new-device-name" placeholder="e.g. Alice's ESP32" maxlength="40"
+             onkeydown="if(event.key==='Enter') createDevice()">
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="createDevice()">Register Device</button>
+
+    <div id="new-token-area" style="display:none;margin-top:1rem">
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.4rem">Auth token (copy this now):</div>
+      <div class="token-display">
+        <code id="new-token-value"></code>
+        <button class="btn btn-ghost btn-sm" onclick="copyToken()">Copy</button>
+      </div>
+    </div>
+
+    <div style="margin-top:1.5rem;font-size:0.85rem;font-weight:600;color:var(--muted);margin-bottom:0.75rem">Registered devices</div>
+    <div id="device-list-modal" class="device-list"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDeviceModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let dashboards = [];
+let onlineTokens = new Set();
+let dragSrcId = null;
+
+// ── WebSocket for live device status ─────────────────────────────────────────
+const ws = new WebSocket(`ws://${location.host}/ws`);
+ws.onmessage = (e) => {
+  const msg = JSON.parse(e.data);
+  if (msg.type === 'online_devices') {
+    onlineTokens = new Set(msg.tokens);
+    updateOnlineDots();
+  } else if (msg.type === 'device_status') {
+    if (msg.online) onlineTokens.add(msg.token);
+    else onlineTokens.delete(msg.token);
+    updateOnlineDots();
+  }
+};
+
+function updateOnlineDots() {
+  document.querySelectorAll('[data-token]').forEach(el => {
+    const token = el.dataset.token;
+    el.classList.toggle('online', onlineTokens.has(token));
+  });
+}
+
+// ── Dashboard list ────────────────────────────────────────────────────────────
+async function loadDashboards() {
+  const res = await fetch('/api/dashboards');
+  dashboards = await res.json();
+  renderDashboards();
+}
+
+function renderDashboards() {
+  const list = document.getElementById('dash-list');
+  if (!dashboards.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h4"/></svg>
+        <p>No dashboards yet — create one above to get started.</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = dashboards.map(d => `
+    <div class="dash-card"
+         id="dc-${d.id}"
+         draggable="true"
+         ondragstart="onDragStart(event,${d.id})"
+         ondragover="onDragOver(event,${d.id})"
+         ondragleave="onDragLeave(event,${d.id})"
+         ondrop="onDrop(event,${d.id})"
+         onclick="goDash(event,${d.id})">
+      <div class="drag-handle" title="Drag to reorder" onclick="event.stopPropagation()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>
+      </div>
+      <div class="dash-info">
+        <div class="dash-name">${escHtml(d.name)}</div>
+        <div class="dash-meta">Created ${fmtDate(d.created_at)}</div>
+      </div>
+      <div class="dash-actions">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();goDash(event,${d.id})">Open</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteDashboard(${d.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function createDashboard() {
+  const input = document.getElementById('new-dash-name');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  const res = await fetch('/api/dashboards', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name })
+  });
+  const dash = await res.json();
+  input.value = '';
+  dashboards.push(dash);
+  renderDashboards();
+  showToast(`Dashboard "${name}" created`);
+}
+
+async function deleteDashboard(id) {
+  const dash = dashboards.find(d => d.id === id);
+  if (!confirm(`Delete "${dash?.name}"? This also removes all its widgets.`)) return;
+  await fetch(`/api/dashboards/${id}`, { method: 'DELETE' });
+  dashboards = dashboards.filter(d => d.id !== id);
+  renderDashboards();
+}
+
+function goDash(e, id) {
+  window.location.href = `/dash.html?id=${id}`;
+}
+
+// ── Drag-to-reorder ───────────────────────────────────────────────────────────
+function onDragStart(e, id) {
+  dragSrcId = id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragOver(e, id) {
+  e.preventDefault();
+  if (id === dragSrcId) return;
+  document.getElementById(`dc-${id}`).classList.add('drag-over');
+}
+
+function onDragLeave(e, id) {
+  document.getElementById(`dc-${id}`).classList.remove('drag-over');
+}
+
+async function onDrop(e, targetId) {
+  e.preventDefault();
+  document.querySelectorAll('.dash-card').forEach(c => c.classList.remove('drag-over','dragging'));
+  if (targetId === dragSrcId) return;
+
+  const srcIdx  = dashboards.findIndex(d => d.id === dragSrcId);
+  const tgtIdx  = dashboards.findIndex(d => d.id === targetId);
+  const [moved] = dashboards.splice(srcIdx, 1);
+  dashboards.splice(tgtIdx, 0, moved);
+  renderDashboards();
+
+  await fetch('/api/dashboards/reorder', {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ ids: dashboards.map(d => d.id) })
+  });
+}
+
+// ── Devices modal ─────────────────────────────────────────────────────────────
+let devices = [];
+
+async function openDeviceModal() {
+  document.getElementById('device-modal').classList.add('open');
+  document.getElementById('new-token-area').style.display = 'none';
+  await loadDevices();
+}
+
+function closeDeviceModal() {
+  document.getElementById('device-modal').classList.remove('open');
+}
+
+async function loadDevices() {
+  const res = await fetch('/api/devices');
+  devices = await res.json();
+  renderDevicesModal();
+}
+
+function renderDevicesModal() {
+  const list = document.getElementById('device-list-modal');
+  if (!devices.length) {
+    list.innerHTML = `<div style="color:var(--muted);font-size:0.85rem">No devices registered yet.</div>`;
+    return;
+  }
+  list.innerHTML = devices.map(d => `
+    <div class="device-card">
+      <div class="device-dot ${onlineTokens.has(d.auth_token)?'online':''}" data-token="${d.auth_token}"></div>
+      <div class="device-info">
+        <div class="device-name">${escHtml(d.name)}</div>
+        <div class="device-token">${d.auth_token}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="deleteDevice(${d.id})">Delete</button>
+    </div>
+  `).join('');
+}
+
+async function createDevice() {
+  const input = document.getElementById('new-device-name');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  const res = await fetch('/api/devices', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name })
+  });
+  const device = await res.json();
+  input.value = '';
+  devices.push(device);
+  renderDevicesModal();
+
+  document.getElementById('new-token-value').textContent = device.auth_token;
+  document.getElementById('new-token-area').style.display = 'block';
+}
+
+async function deleteDevice(id) {
+  const d = devices.find(x => x.id === id);
+  if (!confirm(`Delete device "${d?.name}"?`)) return;
+  await fetch(`/api/devices/${id}`, { method: 'DELETE' });
+  devices = devices.filter(x => x.id !== id);
+  renderDevicesModal();
+}
+
+function copyToken() {
+  const val = document.getElementById('new-token-value').textContent;
+  if (navigator.clipboard && location.protocol === 'https:') {
+    navigator.clipboard.writeText(val).then(() => showToast('Token copied to clipboard'));
+  } else {
+    // Fallback for http:// (classroom local network)
+    const ta = document.createElement('textarea');
+    ta.value = val;
+    ta.style.position = 'fixed';
+    ta.style.opacity  = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Token copied to clipboard');
+  }
+}
+
+// Close modal on overlay click
+document.getElementById('device-modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('device-modal')) closeDeviceModal();
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDate(s) {
+  const d = new Date(s + (s.endsWith('Z') ? '' : 'Z'));
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadDashboards();
+</script>
+</body>
+</html>

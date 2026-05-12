@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HomeLab Dashboard</title>
+  <link rel="icon" type="image/png" href="/icon.png">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --surface2:  #22263a;
+      --border:    #2e3350;
+      --accent:    #4f8ef7;
+      --accent2:   #7c4dff;
+      --green:     #22c55e;
+      --yellow:    #f59e0b;
+      --red:       #ef4444;
+      --text:      #e8eaf6;
+      --muted:     #8892b0;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky; top: 0; z-index: 50;
+    }
+
+    .back-btn {
+      display: flex; align-items: center; gap: 0.4rem;
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 0.875rem; padding: 0.25rem;
+    }
+    .back-btn:hover { color: var(--text); }
+
+    .dash-title { font-size: 1.1rem; font-weight: 700; flex: 1; }
+
+    .device-status {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.8rem; color: var(--muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted); transition: background 0.3s;
+    }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1rem; border-radius: 8px; border: none;
+      cursor: pointer; font-size: 0.875rem; font-weight: 600;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+
+    /* ── Widget grid ─────────────────────────────────────────────────────── */
+    .grid-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .widget-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 768px) { .widget-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .widget-grid { grid-template-columns: 1fr; } }
+
+    /* ── Widget card base ────────────────────────────────────────────────── */
+    .widget-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      position: relative;
+      transition: border-color 0.15s;
+      min-height: 140px;
+      display: flex; flex-direction: column;
+    }
+    .widget-card.drag-over { border-color: var(--accent2); border-style: dashed; }
+    .widget-card.dragging  { opacity: 0.4; }
+
+    .widget-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .widget-label { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .widget-pin   { font-size: 0.7rem; color: var(--border); margin-top: 0.15rem; font-family: monospace; }
+
+    .widget-edit-controls {
+      display: none;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    body.edit-mode .widget-edit-controls { display: flex; }
+
+    .drag-handle-widget {
+      color: var(--muted); cursor: grab; display: flex; align-items: center;
+    }
+    .drag-handle-widget:active { cursor: grabbing; }
+
+    /* ── Switch card ─────────────────────────────────────────────────────── */
+    .switch-body {
+      flex: 1; display: flex; align-items: center; justify-content: space-between;
+    }
+    .switch-value { font-size: 1.4rem; font-weight: 700; }
+    .switch-value.on  { color: var(--green); }
+    .switch-value.off { color: var(--muted); }
+
+    .toggle {
+      position: relative; width: 52px; height: 28px;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: transform 0.25s, background 0.25s;
+    }
+    .toggle input:checked ~ .toggle-track { background: var(--green); border-color: var(--green); }
+    .toggle input:checked ~ .toggle-track .toggle-thumb { transform: translateX(24px); background: #fff; }
+
+    /* ── Slider card ─────────────────────────────────────────────────────── */
+    .slider-body { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 0.75rem; }
+    .slider-val  { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 6px; border-radius: 3px;
+      background: var(--surface2);
+      outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+      border: 2px solid var(--bg);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+      border: 2px solid var(--bg);
+    }
+
+    /* ── Gauge card ──────────────────────────────────────────────────────── */
+    .gauge-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .gauge-wrap { position: relative; width: 120px; height: 70px; }
+    .gauge-svg  { overflow: visible; }
+    .gauge-arc-bg   { fill: none; stroke: var(--surface2); stroke-width: 10; stroke-linecap: round; }
+    .gauge-arc-fill { fill: none; stroke: var(--accent); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 0.5s; }
+    .gauge-num { font-size: 1.4rem; font-weight: 700; color: var(--text); text-align: center; margin-top: 0.4rem; }
+    .gauge-unit { font-size: 0.75rem; color: var(--muted); text-align: center; }
+
+    /* ── Range pills ─────────────────────────────────────────────────────── */
+    .range-pills { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+
+    .range-pill {
+      padding: 0.2rem 0.5rem;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .range-pill:hover  { border-color: var(--accent); color: var(--accent); }
+    .range-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── Graph card ──────────────────────────────────────────────────────── */
+    .graph-card { grid-column: span 2; }
+    @media (max-width: 768px) { .graph-card { grid-column: span 2; } }
+    @media (max-width: 480px) { .graph-card { grid-column: span 1; } }
+
+    .graph-body { flex: 1; min-height: 160px; position: relative; }
+    .graph-body canvas { position: absolute; inset: 0; }
+
+    /* ── Empty / add placeholder ─────────────────────────────────────────── */
+    .add-placeholder {
+      display: none;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      align-items: center; justify-content: center;
+      min-height: 140px; cursor: pointer; color: var(--muted);
+      font-size: 0.875rem; gap: 0.5rem;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .add-placeholder:hover { border-color: var(--accent); color: var(--accent); }
+    body.edit-mode .add-placeholder { display: flex; }
+
+    .empty-dash {
+      text-align: center; padding: 4rem 2rem; color: var(--muted);
+      grid-column: 1 / -1;
+    }
+    .empty-dash svg { margin: 0 auto 1rem; display: block; opacity: 0.25; }
+
+    /* ── Side panel (Add widget) ─────────────────────────────────────────── */
+    .side-panel {
+      position: fixed; top: 0; right: 0;
+      width: min(340px, 96vw); height: 100vh;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 60;
+      transform: translateX(100%);
+      transition: transform 0.25s;
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    .side-panel.open { transform: translateX(0); }
+
+    .side-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.25rem; border-bottom: 1px solid var(--border);
+      font-size: 1rem; font-weight: 700;
+      position: sticky; top: 0; background: var(--surface); z-index: 1;
+    }
+
+    .side-panel-body { padding: 1.25rem; flex: 1; }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 0.4rem; font-weight: 600; }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.6rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .form-group input:focus,
+    .form-group select:focus { border-color: var(--accent); }
+    .form-group select option { background: var(--surface2); }
+
+    .type-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+    }
+    .type-btn {
+      padding: 0.75rem 0.5rem; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px;
+      cursor: pointer; text-align: center; font-size: 0.82rem;
+      color: var(--muted); transition: border-color 0.15s, color 0.15s;
+    }
+    .type-btn:hover { border-color: var(--accent); color: var(--text); }
+    .type-btn.selected { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.1); }
+    .type-btn svg { display: block; margin: 0 auto 0.35rem; }
+
+    .config-section { display: none; }
+    .config-section.visible { display: block; }
+
+    .inline-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* ── Modal (generic) ─────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.75rem; width: min(420px, 94vw);
+      transform: translateY(12px); transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal h2 { font-size: 1.05rem; margin-bottom: 1.25rem; }
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; }
+
+    /* ── Toast ───────────────────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.7rem 1.1rem;
+      font-size: 0.875rem; color: var(--text);
+      z-index: 200; transform: translateY(4rem); opacity: 0;
+      transition: transform 0.25s, opacity 0.25s; pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" onclick="window.location.href='/'">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Home
+  </button>
+
+  <div class="dash-title" id="dash-title">Loading…</div>
+
+  <div class="device-status" id="dev-status" style="display:none">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-label">offline</span>
+  </div>
+
+  <div id="view-actions">
+    <button class="btn btn-ghost btn-sm" onclick="enterEditMode()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit
+    </button>
+  </div>
+
+  <div id="edit-actions" style="display:none;gap:0.5rem;display:none">
+    <button class="btn btn-ghost btn-sm" onclick="openAddPanel()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      Add Widget
+    </button>
+    <button class="btn btn-success btn-sm" onclick="exitEditMode()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      Done
+    </button>
+  </div>
+</header>
+
+<div class="grid-container">
+  <div class="widget-grid" id="widget-grid"></div>
+</div>
+
+<!-- Add Widget side panel -->
+<div class="side-panel" id="add-panel">
+  <div class="side-panel-header">
+    Add Widget
+    <button class="btn btn-ghost btn-sm" onclick="closeAddPanel()">✕</button>
+  </div>
+  <div class="side-panel-body">
+
+    <div class="form-group">
+      <label>Widget type</label>
+      <div class="type-grid">
+        <div class="type-btn" data-type="switch" onclick="selectType('switch')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          Switch
+        </div>
+        <div class="type-btn" data-type="slider" onclick="selectType('slider')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="12" cy="12" r="3"/></svg>
+          Slider
+        </div>
+        <div class="type-btn" data-type="gauge" onclick="selectType('gauge')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 7.07 17.07"/><path d="M12 2A10 10 0 0 0 4.93 17.07"/><line x1="12" y1="12" x2="12" y2="7"/></svg>
+          Gauge
+        </div>
+        <div class="type-btn" data-type="graph" onclick="selectType('graph')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Graph
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Label</label>
+      <input type="text" id="w-label" placeholder="e.g. Bedroom Light" maxlength="40">
+    </div>
+
+    <div class="form-group">
+      <label>Device</label>
+      <select id="w-device">
+        <option value="">Select a device…</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Pin name <span style="color:var(--yellow);font-weight:700">- must match your sketch exactly</span></label>
+      <input type="text" id="w-pin" placeholder='matches getControl("") publishSensor()' maxlength="30">
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:0.35rem">
+        Same spelling, same capitalisation as your <code style="color:var(--accent)">getControl()</code> or <code style="color:var(--accent)">publishSensor()</code> call.
+      </div>
+    </div>
+
+    <!-- Slider config -->
+    <div class="config-section" id="cfg-slider">
+      <div class="inline-pair">
+        <div class="form-group">
+          <label>Min value</label>
+          <input type="number" id="w-min" value="0">
+        </div>
+        <div class="form-group">
+          <label>Max value</label>
+          <input type="number" id="w-max" value="255">
+        </div>
+      </div>
+    </div>
+
+    <!-- Gauge config -->
+    <div class="config-section" id="cfg-gauge">
+      <div class="inline-pair">
+        <div class="form-group">
+          <label>Min value</label>
+          <input type="number" id="g-min" value="0">
+        </div>
+        <div class="form-group">
+          <label>Max value</label>
+          <input type="number" id="g-max" value="100">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Unit (optional)</label>
+        <input type="text" id="g-unit" placeholder="e.g. °C or %" maxlength="10">
+      </div>
+    </div>
+
+    <!-- Graph config -->
+    <div class="config-section" id="cfg-graph">
+      <div class="form-group">
+        <label>Unit (optional)</label>
+        <input type="text" id="gr-unit" placeholder="e.g. °C" maxlength="10">
+      </div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem" onclick="submitAddWidget()">
+      Add Widget
+    </button>
+  </div>
+</div>
+
+<!-- Edit widget modal -->
+<div class="modal-overlay" id="edit-widget-modal">
+  <div class="modal">
+    <h2>Edit Widget</h2>
+    <input type="hidden" id="ew-id">
+    <div class="form-group">
+      <label>Label</label>
+      <input type="text" id="ew-label" maxlength="40">
+    </div>
+    <div id="ew-config-fields"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditWidget()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/widgets.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>
