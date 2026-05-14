@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "aedes": "^0.51.2",
+    "chart.js": "^4.5.1",
     "express": "^4.18.2",
     "mqtt": "^5.3.4",
     "uuid": "^9.0.0",
