@@ -180,11 +180,24 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 server.listen(HTTP_PORT, () => {
   const ifaces = require('os').networkInterfaces();
   let localIP = 'localhost';
+  const candidates = [];
   for (const name of Object.keys(ifaces)) {
     for (const iface of ifaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) { localIP = iface.address; break; }
+      if (iface.family !== 'IPv4' || iface.internal) continue;
+      candidates.push({ name, address: iface.address });
     }
   }
+  // Prefer real WiFi/LAN addresses over Docker/VM bridge interfaces.
+  // Docker typically uses 172.17.x.x and 172.18.x.x; skip those.
+  const preferred = candidates.find(c => /^192\.168\./.test(c.address))
+    ?? candidates.find(c => /^10\./.test(c.address))
+    ?? candidates.find(c => {
+      const second = parseInt(c.address.split('.')[1], 10);
+      return /^172\./.test(c.address) && second >= 16 && second <= 31
+        && !['172.17', '172.18', '172.19'].some(p => c.address.startsWith(p));
+    })
+    ?? candidates[0];
+  if (preferred) localIP = preferred.address;
   console.log(`[HTTP] Server running at http://localhost:${HTTP_PORT}`);
   console.log(`[HTTP] Network access: http://${localIP}:${HTTP_PORT}`);
   console.log(`[MQTT] ESP32 broker IP for students: ${localIP}:${MQTT_PORT}`);
