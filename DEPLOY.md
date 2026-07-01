@@ -33,7 +33,36 @@ You should see `v22.x.x`. If you do, Node is ready.
 
 ---
 
-## Step 2 — Copy the project to the Linux machine
+## Step 2 — Get the project onto the Linux machine
+
+### Option A — Git / GitHub (recommended)
+
+SSH into the Miix first:
+
+```powershell
+ssh wilteq@172.22.2.26
+```
+
+Then on the Miix:
+
+```bash
+sudo apt update && sudo apt install -y git
+git clone https://github.com/VostroDev/homelab-server.git ~/homelab-server
+```
+
+That's it — no USB stick, no rsync needed.
+
+**Future updates:** just pull and restart:
+
+```bash
+cd ~/homelab-server
+git pull
+pm2 restart homelab
+```
+
+---
+
+## Step 2 (alternative) — Copy the project to the Linux machine
 
 ### Option A — USB stick (no internet needed)
 
@@ -60,13 +89,13 @@ cd C:\Users\rwils\CursorProjects\Blynk
 git init
 git add .
 git commit -m "initial commit"
-git remote add origin https://github.com/YOUR_USERNAME/homelab-server.git
+git remote add origin https://github.com/vostrodev/homelab-server.git
 git push -u origin main
 ```
 
 Then on the Linux machine:
 ```bash
-git clone https://github.com/YOUR_USERNAME/homelab-server.git ~/homelab-server
+git clone https://github.com/vostrodev/homelab-server.git ~/homelab-server
 ```
 
 ---
@@ -241,7 +270,7 @@ Save with `Ctrl+X → Y → Enter`, then reboot. The Pi will always be at `192.1
 
 When you make changes on your Windows machine and want to deploy them:
 
-### If using Git:
+### If using Git (recommended):
 ```bash
 cd ~/homelab-server
 git pull
@@ -254,7 +283,7 @@ Copy the updated files to the Linux machine, then:
 pm2 restart homelab
 ```
 
-The `data/homelab.db` database file is **not overwritten** by updates — student data is safe.
+The `data/homelab.db` database file is **not overwritten** by rsync or USB copy — student data is safe.
 
 ---
 
@@ -462,3 +491,4 @@ sudo kill <PID shown>
 - Check the device dot — it should turn green when the ESP32 connects
 - Confirm the AUTH_TOKEN in the sketch matches the token on the Devices page
 - Check `pm2 logs homelab` for `[MQTT] Device connected:` messages
+
